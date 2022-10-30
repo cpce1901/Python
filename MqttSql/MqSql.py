@@ -18,7 +18,7 @@ class DataBase:
             print("fallo en la conexion")
 
     def crear(self, dato):
-        sql = f'INSERT INTO Demo {dato}'
+        sql = f"INSERT INTO 'datos' ('id', 'Temp') VALUES (NULL, {dato})"
 
         try:
             self.cursor.execute(sql)
