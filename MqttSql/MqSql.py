@@ -18,13 +18,20 @@ class DataBase:
             print("fallo en la conexion")
 
     def crear(self, dato):
-        sql = f"INSERT INTO 'datos' ('id', 'Temp') VALUES (NULL, {dato})"
-
         try:
-            self.cursor.execute(sql)
-            self.cconnection.commit()
+            dato = float(dato)
+            sql = "INSERT INTO datos (Temp) VALUES ({})".format(dato)
+            
+            try:
+                self.cursor.execute(sql)
+                self.cconnection.commit()
+                print("Ingresado")
+            except:
+                print("Hubo un error")
+        
         except:
-            print("Hubo un error")
+            print("El valor no es posible de procesar")
+        
 
     def cierre(self):
         self.cconnection.close()
@@ -47,10 +54,9 @@ class Mqtt(DataBase):
 
     def on_message(self, client, userdata, msg):
         lectura = str(msg.payload)
-        lectura = lectura[2:-1]
-        self.conexion()
-        self.crear(int(lectura))
-        self.cierre()
+        lectura = lectura[2:-1]   
+        lectura = lectura.replace("\\", "").replace("n","")        
+        self.crear(lectura)        
         print(lectura)
 
     def conexion(self):
