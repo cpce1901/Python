@@ -1,76 +1,60 @@
-import paho.mqtt.client as mqtt
-import pymysql
+from paho.mqtt import client as mqtt_client
+import time
+from TesteSQL import DataBase
+
+broker = 'node02.myqtthub.com'
+port = 1883
+topicot1 = 'machali1231/escritorio/st1'
+topicoh1 = 'machali1231/escritorio/sh1'
+client_id = 'python'
+username = 'python1901'
+password = 'cpce1901'
+
+conectado = False
+recivido = False
+topicos = [topicot1, topicoh1]
+datos = []
+lecturas = {}
 
 
-class DataBase:
-    def __init__(self):
-        self.cconnection = pymysql.connect(
-            host='localhost',
-            user='root',
-            password='cpce1901',
-            db='Demo'
-        )
-
-        try:
-            self.cursor = self.cconnection.cursor()
-            print("Conexion realizada")
-        except:
-            print("fallo en la conexion")
-
-    def crear(self, dato):
-        try:
-            dato = float(dato)
-            sql = "INSERT INTO datos (Temp) VALUES ({})".format(dato)
-            
-            try:
-                self.cursor.execute(sql)
-                self.cconnection.commit()
-                print("Ingresado")
-            except:
-                print("Hubo un error")
-        
-        except:
-            print("El valor no es posible de procesar")
-        
-
-    def cierre(self):
-        self.cconnection.close()
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("Conectado a broker")
+        global conectado
+        conectado = True
+    else:
+        print("Failed to connect, return code %d\n", rc)
 
 
-class Mqtt(DataBase):
-    client = mqtt.Client()
-
-    def __init__(self, broker, usuario, clave, puerto, tiempo, topico):
-        self. broker = broker
-        self.usuario = usuario
-        self.clave = clave
-        self.puerto = puerto
-        self.tiempo = tiempo
-        self.topico = topico
-        super().__init__()
-
-    def on_connect(self, client, userdata, flags, rc):
-        client.subscribe(self.topico)
-
-    def on_message(self, client, userdata, msg):
-        lectura = str(msg.payload)
-        lectura = lectura[2:-1]   
-        lectura = lectura.replace("\\", "").replace("n","")        
-        self.crear(lectura)        
-        print(lectura)
-
-    def conexion(self):
-        self.client.on_connect = self.on_connect
-        self.client.on_message = self.on_message
-        self.client.connect(self.broker, self.puerto, self.tiempo)
-
-    def lectura_siempre(self):
-        self.client.loop_forever()
-
-    def detener_lectura(self):
-        self.client.loop_stop()
+def on_mesasage(client, userdata, msg):
+    # print("mensaje recibido: " + str(msg.payload.decode("utf-8")))
+    lec = str(msg.payload.decode("utf-8"))
+    datos.append(lec)
 
 
-mq = Mqtt("broker.hivemq.com", "cpce1901", "cpce1901", 1883, 60, "machali1231")
-mq.conexion()
-mq.lectura_siempre()
+client = mqtt_client.Client(client_id)
+client.on_message = on_mesasage
+client.username_pw_set(username, password)
+client.connect(broker, port)
+client.on_connect = on_connect
+
+for t in topicos:
+    client.subscribe(t)
+
+client.loop_start()
+while not conectado:
+    time.sleep(0.2)
+while not recivido:
+    time.sleep(0.2)
+    if not datos or len(datos) < len(topicos):
+        pass
+    else:
+        lecturas = dict(zip(topicos, datos))
+        database = DataBase()
+        database.grabar('st1', (float(lecturas[topicot1])))
+        database.grabar('sh1', (float(lecturas[topicoh1])))
+        database.cerrar()
+        datos = []
+
+client.loop_stop()
+print("Cerrado")
